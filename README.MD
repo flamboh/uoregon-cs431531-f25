@@ -1,1 +1,1 @@
-# Parallel Processing hoemwork on Talapas Cluster
+# Parallel Processing homework on Talapas Cluster
