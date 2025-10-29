@@ -1,0 +1,9 @@
+The first 10 digits of Pi are 3.1415926535
+Time to calculate Pi serially with 100000000 steps is: 0.585006
+Pi is 3.1415926536
+Time to calculate Pi in parallel using atomic with 100000000 steps is: 27.0561
+Pi is 3.1415926536
+Time to calculate Pi in in parallel using critical with 100000000 steps is: 180.043
+Pi is 3.1415926536
+Time to calculate Pi in parallel using Monte Carlo with 100000000 guesses is: 92.4704
+Pi is 3.1415154934

@@ -1,0 +1,11 @@
+*
+!/**/
+!*.*
+!Makefile
+**/build/
+*.maxpat
+*.png
+*.pyc
+**/__pycache__
+**/.pytest_cache
+*.o
