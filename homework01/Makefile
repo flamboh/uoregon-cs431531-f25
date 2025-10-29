@@ -1,5 +1,6 @@
-CC =  /usr/bin/gcc
-CFLAGS  = -Wall -g -std=c99
+CC =  /opt/homebrew/bin/gcc-15 # ARM Mac
+# CC =  /usr/bin/gcc # Talapas
+CFLAGS  = -Wall -g -std=c99 -S
 CFLAGS += -O3 -fopenmp -lm
 CFLAGS += -D_POSIX_C_SOURCE=200112L
 LIBS =

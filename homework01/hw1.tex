@@ -8,6 +8,8 @@
 \usepackage{xcolor}                     % color (for code or emphasis)
 \usepackage{listings}                   % for code blocks
 \usepackage{geometry}                   % page setup
+\usepackage{pgfplots}
+\pgfplotsset{width=10cm,compat=1.8}
 \geometry{margin=0.75in}
 
 % ===== Code styling =====
@@ -30,5 +32,57 @@
   \vspace{-1em}
 ]
 \section{Parallelizing Pi}
+
+
+\begin{figure*}[h]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      title={Time vs. Threads for $\pi$ Methods (100 million steps)},
+      xlabel={num\_threads},
+      ylabel={time (seconds)},
+      grid=both,
+      legend pos=north west,
+      legend cell align=left,
+      width=0.9\linewidth, height=0.5\linewidth,
+      /pgf/number format/1000 sep={}
+    ]
+  
+      % --- One series per method (reads from the same CSV) ---
+      \addplot+[mark=*] table[
+        col sep=comma,
+        x=num_threads, y=time_serial
+      ] {output/array_cpu/comp_pi_avg.csv};
+      \addlegendentry{Serial}
+  
+      \addplot+[mark=square*] table[
+        col sep=comma,
+        x=num_threads, y=time_atomic
+      ] {output/array_cpu/comp_pi_avg.csv};
+      \addlegendentry{Integral + atomic}
+  
+      \addplot+[mark=triangle*] table[
+        col sep=comma,
+        x=num_threads, y=time_critical
+      ] {output/array_cpu/comp_pi_avg.csv};
+      \addlegendentry{Integral + critical}
+  
+      \addplot+[mark=diamond*] table[
+        col sep=comma,
+        x=num_threads, y=time_monte_carlo_atomic
+      ] {output/array_cpu/comp_pi_avg.csv};
+      \addlegendentry{Monte Carlo + atomic}
+  
+      \addplot+[mark=otimes*] table[
+        col sep=comma,
+        x=num_threads, y=time_monte_carlo_critical
+      ] {output/array_cpu/comp_pi_avg.csv};
+      \addlegendentry{Monte Carlo + critical}
+  
+    \end{axis}
+  \end{tikzpicture}
+  \caption{Runtime vs thread count across $\pi$ implementations. Averaged over 3 runs for each thread count.}
+  \end{figure*}
+  
 
 \end{document}
