@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define CACHELINE      64
 #define PAGESIZE       4096
@@ -37,6 +38,19 @@ static inline uint64_t ReadTSC(void)
     result = result << 32;
     result = result | lower;
     return result;
+
+#elif defined(__aarch64__) || defined(__arm64__)
+
+    uint64_t result;
+    __asm__ __volatile__("mrs %0, cntvct_el0" : "=r" (result));
+    return result;
+
+#else
+
+    // Fallback for unsupported architectures - use clock_gettime
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
 
 #endif // defined(__i386__)
 }

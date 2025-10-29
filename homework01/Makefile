@@ -1,4 +1,4 @@
-CC =  /usr/bin/gcc
+CC =  /opt/homebrew/bin/gcc-15
 CFLAGS  = -Wall -g -std=c99
 CFLAGS += -O3 -fopenmp -lm
 CFLAGS += -D_POSIX_C_SOURCE=200112L
