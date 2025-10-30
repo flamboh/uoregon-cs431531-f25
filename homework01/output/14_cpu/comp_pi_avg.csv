@@ -1,0 +1,2 @@
+num_threads,num_steps,time_serial,time_atomic,time_critical,time_monte_carlo_atomic,time_monte_carlo_critical,pi_serial,pi_atomic,pi_critical,pi_monte_carlo_atomic,pi_monte_carlo_critical
+14,100000000.0,0.5850313500000001,21.41027,61.317975000000004,35.76058,38.80018,3.1415926536,3.1415926536,3.1415926536,3.141520893585,3.141250240805

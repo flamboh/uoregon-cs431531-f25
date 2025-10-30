@@ -1,0 +1,11 @@
+Averages for pi calculations per method:
+pi_serial: 3.1415926536
+Error: 3.2489719466061653e-10%
+pi_atomic: 3.1415926536
+Error: 3.2489719466061653e-10%
+pi_critical: 3.1415926536
+Error: 3.2489719466061653e-10%
+pi_monte_carlo_atomic: 3.1415728926700006
+Error: 0.0006290115912754483%
+pi_monte_carlo_critical: 3.141275799273333
+Error: 0.010086294781983243%
