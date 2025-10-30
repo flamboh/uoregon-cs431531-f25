@@ -2,21 +2,21 @@
 #SBATCH --account=cis431_531		    ### your ‘charge’ account 
 #SBATCH --partition=compute             ### queue to submit to
 #SBATCH --job-name=compu_pi             ### job name
-#SBATCH --output=output/array_cpu/comp_pi_%A.csv  ### file in which to store job stdout (%A=array job ID, %a=task ID)
-#SBATCH --error=output/array_cpu/comp_pi_%A.err   ### file in which to store job stderr (%A=array job ID, %a=task ID)
+#SBATCH --output=output/28_cpu/comp_pi_%A.csv  ### file in which to store job stdout (%A=array job ID, %a=task ID)
+#SBATCH --error=output/28_cpu/comp_pi_%A.err   ### file in which to store job stderr (%A=array job ID, %a=task ID)
 #SBATCH --time=00:15:00                 ### wall-clock time limit, in minutes
 #SBATCH --mem=16000M                    ### memory limit per node (K|M|G|T)
 #SBATCH --nodes=1                       ### number of nodes to use
 #SBATCH --ntasks-per-node=1             ### number of MPI tasks per node
 #SBATCH --array=1-20
-#SBATCH --cpus-per-task=20              ### number of CPUs for each task
+#SBATCH --cpus-per-task=28              ### number of CPUs for each task
 
-export OMP_NUM_THREADS=$SLURM_ARRAY_TASK_ID
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export OMP_PLACES="cores"
 export OMP_PROC_BIND='spread'
 export OMP_DISPLAY_ENV='true'
 
-echo "num_threads,num_steps,time_serial,time_atomic,time_critical,time_monte_carlo_atomic,time_monte_carlo_critical,pi_serial,pi_atomic,pi_critical,pi_monte_carlo_atomic,pi_monte_carlo_critical" >> output/array_cpu/comp_pi_$SLURM_ARRAY_JOB_ID.csv
+echo "num_threads,num_steps,time_serial,time_atomic,time_critical,time_monte_carlo_atomic,time_monte_carlo_critical,pi_serial,pi_atomic,pi_critical,pi_monte_carlo_atomic,pi_monte_carlo_critical" >> output/28_cpu/comp_pi_$SLURM_ARRAY_JOB_ID.csv
 # echo "Task {$SLURM_ARRAY_TASK_ID}: Running with {$OMP_NUM_THREADS} threads"
 
 ./pi 100000000
