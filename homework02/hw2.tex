@@ -35,13 +35,28 @@
   \vspace{-1em}
 ]
 \section{Implementation}
-I struggled a lot through this problem. These 
-\section{Estimations}
+\subsection{Prefix}
+I struggled a lot through this problem. These algorithms were far less simple than Pi calculation. It took a lot of verification, even as I got close to the correct algorithm, to reach the final state. 
+\subsection{Data Collection}
+I used a similar setup with prefix.srun as previously, array jobs ran several times across different thread counts. I also added a --csv flag to the prefix.c program to allow for me to easily gather my data. This data was then collected and summarized using a helper Python script to save as a csv and load into this document.
 \section{Parallelization and Speed}
+\subsection{Talapas Results}
+Consistent with the previous assignment, increased thread count seems to have no effect on Talapas. Overall, the timing results seem to have a consistent fluctuation, but not one correlated to thread count. In particular, a spike at 10 threads happened consistently for each test run. I have not had the time yet, but I intend to research more about the cause of this.
+\subsubsection{30 Million Elements}
+Operating on more than 30 Million elements, times varied from 0.33 to 0.05 seconds (see \ref{fig:prefix_30m}). At this array size and this scale of thread count, it seems that the serial implementation will remain faster. This makes some sense to me, as the overhead for both algorithms is much higher, with more memory management and equal or greater big O complexity.
+\subsubsection{300 Million Elements}
+Operating on more than 300 Million elements (see \ref{fig:prefix_300m}), times varied from 4.5 to 0.2 seconds. At this array size and it is strange that the serial is still the fastest. The overhead should be much less important at this scale.
+\subsection{Local Results}
+Given these still unusual results on Talapas, I also tested on my local machine (an M4 Pro MacBook Pro with 8 performance cores). These results made more sense. Unfortunately, I cannot test locally out to the same thread count as on Talapas.
+\subsubsection{30 Million Elements}
+Operating on more than 30 Million elements, times varied from 0.14 to 0.025 seconds (see \ref{fig:prefix_30m}). These results looked a lot like noise, similar to the results on Talapas.
+\subsubsection{300 Million Elements}
+Operating on more 300 million elements, times varied from 1.2 to 0.25 seconds (see \ref{fig:prefix_300m}). Finally, increasing the number of threads steadily decreased the time taken for the parallel algorithms. 
 \section{Conclusions}
+Taken together, these measurements suggest the code itself is fine (at least for this assignment). The local machine shows the expected trend where the $O(n)$ sweep beats the $O(n\log n)$ sweep once the thread count rises. However, Talapas may be creating far more overhead than the algorithms can account for.
 
 
-\begin{figure*}[ht]
+\begin{figure*}[h]
   \centering
   \begin{tikzpicture}
     \begin{axis}[
@@ -49,7 +64,8 @@ I struggled a lot through this problem. These
       xlabel={num\_threads},
       ylabel={time (seconds)},
       grid=both,
-      legend pos=north west,
+      legend columns=3,
+      legend style={at={(0.5,-0.2)}, anchor=north, font=\footnotesize},
       legend cell align=left,
       width=0.9\linewidth, height=0.5\linewidth,
       /pgf/number format/1000 sep={}
@@ -103,8 +119,6 @@ I struggled a lot through this problem. These
       xlabel={num\_threads},
       ylabel={time (seconds)},
       grid=both,
-      legend pos=north west,
-      legend cell align=left,
       width=0.9\linewidth, height=0.5\linewidth,
       /pgf/number format/1000 sep={}
     ]
@@ -112,37 +126,31 @@ I struggled a lot through this problem. These
         col sep=comma,
         x=num_threads, y=serial_time
       ] {output/300M/prefix_avg_300M_remote.csv};
-      \addlegendentry{Serial (remote)}
 
       \addplot+[mark=square*, thick] table[
         col sep=comma,
         x=num_threads, y=nlogn_time
       ] {output/300M/prefix_avg_300M_remote.csv};
-      \addlegendentry{$O(n\log n)$ (remote)}
 
       \addplot+[mark=triangle*, thick] table[
         col sep=comma,
         x=num_threads, y=n_time
       ] {output/300M/prefix_avg_300M_remote.csv};
-      \addlegendentry{$O(n)$ (remote)}
 
       \addplot+[mark=o, dashed] table[
         col sep=comma,
         x=num_threads, y=serial_time
       ] {output/300M/prefix_avg_300M.csv};
-      \addlegendentry{Serial (local)}
 
       \addplot+[mark=diamond*, dashed] table[
         col sep=comma,
         x=num_threads, y=nlogn_time
       ] {output/300M/prefix_avg_300M.csv};
-      \addlegendentry{$O(n\log n)$ (local)}
 
       \addplot+[mark=otimes*, dashed] table[
         col sep=comma,
         x=num_threads, y=n_time
       ] {output/300M/prefix_avg_300M.csv};
-      \addlegendentry{$O(n)$ (local)}
     \end{axis}
   \end{tikzpicture}
   \caption{335{,}544{,}320 elements: solid markers denote Talapas averages, dashed markers show local reruns (5 trials each).}
