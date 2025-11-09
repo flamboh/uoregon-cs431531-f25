@@ -2,8 +2,8 @@
 #SBATCH --account=cis431_531            ### your ‘charge’ account 
 #SBATCH --partition=compute             ### queue to submit to
 #SBATCH --job-name=prefix               ### job name
-#SBATCH --output=output/30M/prefix_%A.out   ### file in which to store job stdout
-#SBATCH --error=output/30M/prefix_%A.err    ### file in which to store job stderr
+#SBATCH --output=output/300M/prefix_%A.out   ### file in which to store job stdout
+#SBATCH --error=output/300M/prefix_%A.err    ### file in which to store job stderr
 #SBATCH --time=00:15:00                 ### wall-clock time limit, in minutes
 #SBATCH --mem=16000M                    ### memory limit per node (K|M|G|T)
 #SBATCH --nodes=1                       ### number of nodes to use
@@ -18,4 +18,4 @@ export OMP_DISPLAY_ENV='true'
 
 echo "num_threads,num_items,serial_time,nlogn_time,n_time"
 
-./prefix 33554432 5 --csv
+./prefix 335544320 5 --csv
