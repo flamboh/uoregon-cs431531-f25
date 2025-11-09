@@ -103,16 +103,16 @@ int main(int argc, char** argv)
     start_t = ReadTSC();
     prefix_sum_p2(input_array1, prefix_array1, n);
     end_t = ReadTSC();
-    double two_n_time = ElapsedTime(end_t - start_t);
+    double n_time = ElapsedTime(end_t - start_t);
     if(!csv_output_enabled) {
         printf("Time to do 2(N-1) //prefix sum on a %"PRIu32" elements: %g (s)\n",
-               n, two_n_time);
+               n, n_time);
     }
     verify(prefix_array, prefix_array1, n);
 
     if(csv_output_enabled) {
-        printf("serial,nlogn,2nminus1\n");
-        printf("%g,%g,%g\n", serial_time, nlogn_time, two_n_time);
+        // printf("serial,nlogn,n\n");
+        printf("%d,%d,%g,%g,%g\n", omp_get_max_threads(), n, serial_time, nlogn_time, n_time);
     }
 
 
@@ -162,13 +162,14 @@ void prefix_sum_p1(int* src, int* prefix, int n)
     
     #pragma omp parallel for schedule(static)
     for(int i = 0; i < n; i++) cur[i] = src[i];
-    
-    
-    for (int i = 0; i < (int)log2((double)n); i++) {
+
+
+    for (int i = 0; i < (int)ceil(log2((double)n)); i++) {
+        int offset = 1 << i;
         #pragma omp parallel for schedule(static)
         for (int j = 0; j < n ; j++) {
-            if (j >= 1 << i) {
-                next[j] = cur[j] + cur[j - (1 << i)];
+            if (j >= offset) {
+                next[j] = cur[j] + cur[j - offset];
             }
             else {
                 next[j] = cur[j];
