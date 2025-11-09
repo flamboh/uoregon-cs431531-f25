@@ -9,8 +9,11 @@
 \usepackage{listings}                   % for code blocks
 \usepackage{geometry}                   % page setup
 \usepackage{pgfplots}
+\usepackage{booktabs}
+\usepackage{microtype}
 \pgfplotsset{width=10cm,compat=1.8}
 \geometry{margin=0.75in}
+\emergencystretch=2em
 
 % ===== Code styling =====
 \lstset{
@@ -22,17 +25,128 @@
 }
 
 % ===== Title info =====
-\title{CS 431 Homework \#2}
+\title{Parallelizing Prefix Sum}
 \author{Oliver Boorstein \\ University of Oregon}
-\date{November 8, 2025}
+\date{October 29, 2025}
 
 \begin{document}
 \twocolumn[
   \maketitle
   \vspace{-1em}
 ]
-\section{Parallelized Prefix Sum}
+\section{Implementation}
+I struggled a lot through this problem. These 
+\section{Estimations}
+\section{Parallelization and Speed}
+\section{Conclusions}
 
 
+\begin{figure*}[ht]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      title={Prefix Sum Runtime vs. Threads (30M elements)},
+      xlabel={num\_threads},
+      ylabel={time (seconds)},
+      grid=both,
+      legend pos=north west,
+      legend cell align=left,
+      width=0.9\linewidth, height=0.5\linewidth,
+      /pgf/number format/1000 sep={}
+    ]
+      \addplot+[mark=*, thick] table[
+        col sep=comma,
+        x=num_threads, y=serial_time
+      ] {output/30M/prefix_avg_30M_remote.csv};
+      \addlegendentry{Serial (remote)}
+
+      \addplot+[mark=square*, thick] table[
+        col sep=comma,
+        x=num_threads, y=nlogn_time
+      ] {output/30M/prefix_avg_30M_remote.csv};
+      \addlegendentry{$O(n\log n)$ (remote)}
+
+      \addplot+[mark=triangle*, thick] table[
+        col sep=comma,
+        x=num_threads, y=n_time
+      ] {output/30M/prefix_avg_30M_remote.csv};
+      \addlegendentry{$O(n)$ (remote)}
+
+      \addplot+[mark=o, dashed] table[
+        col sep=comma,
+        x=num_threads, y=serial_time
+      ] {output/30M/prefix_avg_30M.csv};
+      \addlegendentry{Serial (local)}
+
+      \addplot+[mark=diamond*, dashed] table[
+        col sep=comma,
+        x=num_threads, y=nlogn_time
+      ] {output/30M/prefix_avg_30M.csv};
+      \addlegendentry{$O(n\log n)$ (local)}
+
+      \addplot+[mark=otimes*, dashed] table[
+        col sep=comma,
+        x=num_threads, y=n_time
+      ] {output/30M/prefix_avg_30M.csv};
+      \addlegendentry{$O(n)$ (local)}
+    \end{axis}
+  \end{tikzpicture}
+  \caption{33{,}554{,}432 elements: solid markers denote Talapas averages, dashed markers show local reruns (5 trials each).}
+  \label{fig:prefix_30m}
+\end{figure*}
+
+\begin{figure*}[ht]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      title={Prefix Sum Runtime vs. Threads (300M elements)},
+      xlabel={num\_threads},
+      ylabel={time (seconds)},
+      grid=both,
+      legend pos=north west,
+      legend cell align=left,
+      width=0.9\linewidth, height=0.5\linewidth,
+      /pgf/number format/1000 sep={}
+    ]
+      \addplot+[mark=*, thick] table[
+        col sep=comma,
+        x=num_threads, y=serial_time
+      ] {output/300M/prefix_avg_300M_remote.csv};
+      \addlegendentry{Serial (remote)}
+
+      \addplot+[mark=square*, thick] table[
+        col sep=comma,
+        x=num_threads, y=nlogn_time
+      ] {output/300M/prefix_avg_300M_remote.csv};
+      \addlegendentry{$O(n\log n)$ (remote)}
+
+      \addplot+[mark=triangle*, thick] table[
+        col sep=comma,
+        x=num_threads, y=n_time
+      ] {output/300M/prefix_avg_300M_remote.csv};
+      \addlegendentry{$O(n)$ (remote)}
+
+      \addplot+[mark=o, dashed] table[
+        col sep=comma,
+        x=num_threads, y=serial_time
+      ] {output/300M/prefix_avg_300M.csv};
+      \addlegendentry{Serial (local)}
+
+      \addplot+[mark=diamond*, dashed] table[
+        col sep=comma,
+        x=num_threads, y=nlogn_time
+      ] {output/300M/prefix_avg_300M.csv};
+      \addlegendentry{$O(n\log n)$ (local)}
+
+      \addplot+[mark=otimes*, dashed] table[
+        col sep=comma,
+        x=num_threads, y=n_time
+      ] {output/300M/prefix_avg_300M.csv};
+      \addlegendentry{$O(n)$ (local)}
+    \end{axis}
+  \end{tikzpicture}
+  \caption{335{,}544{,}320 elements: solid markers denote Talapas averages, dashed markers show local reruns (5 trials each).}
+  \label{fig:prefix_300m}
+\end{figure*}
 
 \end{document}
