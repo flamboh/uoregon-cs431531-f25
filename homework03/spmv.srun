@@ -1,0 +1,21 @@
+#!/bin/bash
+#SBATCH --account=cis431_531            ### your ‘charge’ account 
+#SBATCH --partition=compute             ### queue to submit to
+#SBATCH --job-name=prefix               ### job name
+#SBATCH --output=output/spmv_%A.out   ### file in which to store job stdout
+#SBATCH --error=output/spmv_%A.err    ### file in which to store job stderr
+#SBATCH --time=00:15:00                 ### wall-clock time limit, in minutes
+#SBATCH --mem=16000M                    ### memory limit per node (K|M|G|T)
+#SBATCH --nodes=1                       ### number of nodes to use
+#SBATCH --ntasks-per-node=1             ### number of MPI tasks per node
+#SBATCH --array=1-28
+#SBATCH --cpus-per-task=28              ### number of CPUs for each task
+
+export OMP_NUM_THREADS=$SLURM_ARRAY_TASK_ID
+export OMP_PLACES="cores"
+export OMP_PROC_BIND='spread'
+export OMP_DISPLAY_ENV='true'
+
+
+echo "num_threads,load_time,convert_time,lock_init_time,coo_spmv_time,csr_spmv_time,coo_spmv_serial_time,csr_spmv_serial_time,store_time"
+./spmv --csv cant/cant.mtx cant/b.mtx output/ans.mtx  | python3 filter_csv.py

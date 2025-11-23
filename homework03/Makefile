@@ -10,7 +10,7 @@ target = spmv
 all: $(target) 
 
 $(target) : $(objects)
-	$(cc) $(flags) -o $(target) $(objects)
+	$(cc) $(flags) -o $(target) $(objects) -lm
 
 %.o : %.c
 	$(cc) -c $(flags) $< -o $@

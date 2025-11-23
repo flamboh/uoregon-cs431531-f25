@@ -11,3 +11,4 @@
 *.o
 .DS_Store
 *.mtx
+node_modules

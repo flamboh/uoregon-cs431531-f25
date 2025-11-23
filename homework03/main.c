@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <math.h>
 #include <omp.h>
 #include "main.h"
 
@@ -22,9 +23,17 @@
 
 int main(int argc, char** argv)
 {
-    // program info
-    usage(argc, argv);
+    int arg_index = 1;
+    int csv_output = 0;
+    if(argc > arg_index && strcmp(argv[arg_index], "--csv") == 0) {
+        csv_output = 1;
+        arg_index++;
+    }
 
+    if((argc - arg_index) < 3) {
+        usage(argv[0]);
+        exit(EXIT_FAILURE);
+    }
 
     // Initialize timess
     double timer[NUM_TIMERS];
@@ -37,7 +46,8 @@ int main(int argc, char** argv)
 
     // Read the sparse matrix file name
     char matrixName[MAX_FILENAME];
-    strcpy(matrixName, argv[1]);
+    strcpy(matrixName, argv[arg_index]);
+    arg_index++;
     int is_symmetric = 0;
     read_info(matrixName, &is_symmetric);
 
@@ -81,7 +91,8 @@ int main(int argc, char** argv)
 
     // Load the input vector file
     char vectorName[MAX_FILENAME];
-    strcpy(vectorName, argv[2]);
+    strcpy(vectorName, argv[arg_index]);
+    arg_index++;
     fprintf(stdout, "Vector file name: %s ... ", vectorName);
     double* vector_x;
     unsigned int vector_size;
@@ -158,7 +169,7 @@ int main(int argc, char** argv)
 
     // Store the calculated vector in a file, one element per line.
     char resName[MAX_FILENAME];
-    strcpy(resName, argv[3]); 
+    strcpy(resName, argv[arg_index]); 
     fprintf(stdout, "Result file name: %s ... ", resName);
     t0 = ReadTSC();
     store_result(resName, res_csr, m);
@@ -168,7 +179,8 @@ int main(int argc, char** argv)
 
 
     // print timer
-    print_time(timer);
+    int num_threads = omp_get_max_threads();
+    print_time(timer, num_threads, csv_output);
 
 
     // Free memory
@@ -198,12 +210,9 @@ int main(int argc, char** argv)
    return parameters:
        none
  */
-void usage(int argc, char** argv)
+void usage(const char* prog_name)
 {
-    if(argc < 4) {
-        fprintf(stderr, "usage: %s <matrix> <vector> <result>\n", argv[0]);
-        exit(EXIT_FAILURE);
-    } 
+    fprintf(stderr, "usage: %s [--csv] <matrix> <vector> <result>\n", prog_name);
 }
 
 /* This function prints out information about a sparse matrix
@@ -328,6 +337,43 @@ void read_info(char* fileName, int* is_sym)
     fclose(fp);
 }
 
+void prefix_sum(int* src, int* prefix, int n)
+{   
+    int m = pow(2, (int)ceil(log2((double)n)));
+    
+    int *temp = (int *)malloc(m * sizeof(int));
+
+    for (int i = 0; i < m; ++i) {
+        if (i < n) temp[i] = src[i];
+        else temp[i] = 0;
+    }
+
+    for (int i = 0; i < (int)log2((double)m); i++) {
+        int offset = 1 << i;
+        int step = 2 * offset;
+        #pragma omp parallel for schedule(static)
+        for (int j = step - 1; j < m; j += step) {
+            temp[j] += temp[j - offset];
+        }
+    }
+
+    temp[m - 1] = 0;
+    
+    for (int offset = m >> 1; offset >= 1; offset >>= 1) {
+        int step = offset << 1;
+        #pragma omp parallel for schedule(static)
+        for (int j = step - 1; j < m; j += step) {
+            int t = temp[j - offset];
+            temp[j - offset] = temp[j];
+            temp[j] += t; 
+        }
+    }
+    
+    #pragma omp parallel for schedule(static)
+    for (int i = 0; i < n; i++) prefix[i] = temp[i] + src[i];
+}
+
+
 /* This function converts a sparse matrix stored in COO format to CSR format.
    input parameters:
        int*	row_ind		list or row indices (per non-zero)
@@ -349,6 +395,45 @@ void convert_coo_to_csr(int* row_ind, int* col_ind, double* val,
                         double** csr_vals)
 
 {
+    // allocate space for each csr pointer
+    (*csr_row_ptr) = (unsigned int *)malloc(sizeof(unsigned int) * (m + 1)); // rows + 1 to include end pointer
+    (*csr_col_ind) = (unsigned int *)malloc(sizeof(unsigned int) * nnz);
+    (*csr_vals) = (double *)malloc(sizeof(double) * nnz);
+
+    for (int i = 0; i < m + 1; i++)
+        (*csr_row_ptr)[i] = 0; // initialize to 0
+    
+    // counting nnz in each row
+    int *row_counts = (int *)calloc(m, sizeof(int)); // track amount inserted in each row
+    #pragma omp parallel for schedule(static)
+    for (int i = 0; i < nnz; i++) {
+        int row = row_ind[i] - 1;
+        #pragma omp atomic
+        row_counts[row]++;
+    }
+     
+    int *row_prefix = (int *)malloc(m * sizeof(int));
+    prefix_sum(row_counts, row_prefix, m); // convert to
+    
+    (*csr_row_ptr)[0] = 0;
+    for (int i = 0; i < m; i++)
+        (*csr_row_ptr)[i + 1] = row_prefix[i];
+
+    unsigned int *row_offsets = (unsigned int *)calloc(m, sizeof(unsigned int));
+
+    for (int i = 0; i < nnz; i++) {
+        int cur_row = row_ind[i] - 1; // subtract one because coo is 1 based
+        unsigned int offset = row_offsets[cur_row]++;
+        int index = (*csr_row_ptr)[cur_row] + offset;
+        
+
+        (*csr_col_ind)[index] = col_ind[i] - 1;
+        (*csr_vals)[index] = val[i];
+
+    }
+    free(row_counts);
+    free(row_offsets);
+    free(row_prefix);
 }
 
 /* Reads in a vector from file.
@@ -395,6 +480,18 @@ void spmv_coo(unsigned int* row_ind, unsigned int* col_ind, double* vals,
               int m, int n, int nnz, double* vector_x, double *res, 
               omp_lock_t* writelock)
 {
+    for (int i = 0; i < m; i++)
+        res[i] = 0.0;
+
+    for (int i = 0; i < nnz; i++) {
+        int row = row_ind[i] - 1;
+        int col = col_ind[i] - 1;
+        double val = vals[i] * vector_x[col];
+
+        omp_set_lock(&writelock[row]);
+        res[row] += val;
+        omp_unset_lock(&writelock[row]);
+    }
 }
 
 
@@ -405,6 +502,19 @@ void spmv(unsigned int* csr_row_ptr, unsigned int* csr_col_ind,
           double* csr_vals, int m, int n, int nnz, 
           double* vector_x, double *res)
 {
+    #pragma omp parallel for
+    for(int i = 0; i < m; i++) {
+        res[i] = 0.0;
+    }
+
+    #pragma omp parallel for schedule(static)
+    for(unsigned int i = 0; i < m; i++) {
+        unsigned int row_begin = csr_row_ptr[i];
+        unsigned int row_end = csr_row_ptr[i + 1];
+        for(unsigned int j = row_begin; j < row_end; j++) {
+            res[i] += csr_vals[j] * vector_x[csr_col_ind[j]]; 
+        }
+    }
 }
 
 
@@ -413,6 +523,14 @@ void spmv(unsigned int* csr_row_ptr, unsigned int* csr_col_ind,
 void spmv_coo_ser(unsigned int* row_ind, unsigned int* col_ind, double* vals, 
                   int m, int n, int nnz, double* vector_x, double *res)
 {
+    for (int i = 0; i < m; i++)
+        res[i] = 0.0;
+
+    for (int i = 0; i < nnz; i++) {
+        int row = row_ind[i] - 1;
+        int col = col_ind[i] - 1;
+        res[row] += vals[i] * vector_x[col];
+    }
 }
 
 
@@ -423,6 +541,16 @@ void spmv_ser(unsigned int* csr_row_ptr, unsigned int* csr_col_ind,
               double* csr_vals, int m, int n, int nnz, 
               double* vector_x, double *res)
 {
+    for (int i = 0; i < m; i++)
+        res[i] = 0.0;
+
+
+    for (int i = 0; i < m; i++) {
+        int begin = csr_row_ptr[i];
+        int end = csr_row_ptr[i + 1];
+        for (int j = begin; j < end; j++)
+            res[i] += csr_vals[j] * vector_x[csr_col_ind[j]];
+  }
 }
 
 
@@ -444,8 +572,23 @@ void store_result(char *fileName, double* res, int m)
 
 /* Print timing information 
  */
-void print_time(double timer[])
+void print_time(double timer[], int num_threads, int csv_output)
 {
+    if(csv_output) {
+        fprintf(stdout,
+                "%d,%f,%f,%f,%f,%f,%f,%f,%f\n",
+                num_threads,
+                timer[LOAD_TIME],
+                timer[CONVERT_TIME],
+                timer[LOCK_INIT_TIME],
+                timer[SPMV_COO_TIME],
+                timer[SPMV_CSR_TIME],
+                timer[SPMV_COO_SER],
+                timer[SPMV_CSR_SER],
+                timer[STORE_TIME]);
+        return;
+    }
+
     fprintf(stdout, "Module\t\tTime\n");
     fprintf(stdout, "Load\t\t");
     fprintf(stdout, "%f\n", timer[LOAD_TIME]);
@@ -531,7 +674,3 @@ void destroy_locks(omp_lock_t* locks, int m)
     }
     free(locks);
 }
-
-
-
-
