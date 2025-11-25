@@ -4,6 +4,7 @@
     "*.cu": "cuda-cpp",
     "*.cuh": "cuda-cpp",
     "atomic": "c",
-    "cmath": "c"
+    "cmath": "c",
+    "random": "cpp"
   }
 }

@@ -1,0 +1,133 @@
+\documentclass[11pt]{article}
+
+% ===== Packages =====
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{geometry}
+\usepackage{pgfplots}
+\usepackage{booktabs}
+\usepackage{microtype}
+\pgfplotsset{width=10cm,compat=1.8}
+\geometry{margin=0.75in}
+\emergencystretch=2em
+
+% ===== Code styling =====
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{gray!5},
+  frame=single,
+  breaklines=true,
+  columns=fullflexible
+}
+
+% ===== Title info =====
+\title{Parallel Sparse Matrix-Vector Multiply}
+\author{Oliver Boorstein \\ University of Oregon}
+\date{November 22, 2025}
+
+\begin{document}
+\twocolumn[
+  \maketitle
+  \vspace{-1em}
+]
+
+\section{Implementation}
+The CPU portion of Homework 3 implements both COO and CSR sparse matrix-vector multiplication (SpMV) kernels. Following the reference code, I parallelized four areas with OpenMP: histogramming the COO rows, the prefix-sum conversion to CSR, and the threaded COO/CSR SpMV kernels. The serial COO/CSR variants remain available for validation and serve as the baseline in this report. Each threaded kernel executes 100 iterations per run to amortize instrumentation overhead, matching the harness in \texttt{main.c}.
+
+\section{Data Collection}
+Talapas array jobs sweep thread counts 1--28 for five separate submissions (140 samples total). Each submission dumps CSV-formatted timings (filtered via \texttt{filter\_csv.py}). I averaged the runs per thread count into \texttt{output/spmv\_avg.csv} using the same Pandas workflow employed in prior assignments, enabling \LaTeX/PGFPlots to read consistent data. Because the user request focuses on compute kernels, the plots omit load, lock-init, and store timers.
+
+\section{Results}
+\subsection{COO Kernel}
+Figure~\ref{fig:coo_runtime} shows that the parallel COO kernel plateaus at $\approx3.05$ seconds regardless of thread count. The per-row locks serialize most writes, so doubling threads offers no measurable benefit. Table~\ref{tab:summary} indicates a 2.04$\times$ slowdown versus the serial COO baseline at every thread count; the runtime spread of only 1\% across 1--28 threads confirms that the algorithm is bottlenecked by lock contention rather than compute bandwidth.
+
+\subsection{CSR Kernel}
+The CSR kernel scales far better. With a compact row-pointer structure, each thread works on independent row ranges and accumulates into private registers before a single write. Figure~\ref{fig:csr_runtime} highlights near-linear speedup through 14 threads, tapering slowly afterward as expected once memory bandwidth dominates. Parallel CSR reaches $67$ ms at 28 threads, a 23.5$\times$ speedup over the 1-thread parallel baseline and roughly $23\times$ faster than the serial CSR routine (Table~\ref{tab:summary}). Even mid-range counts (8--14 threads) already deliver an order-of-magnitude win compared to serial.
+
+\section{Discussion}
+The contrasting behaviors stem from write granularity. COO requires atomic updates into the destination vector for each nonzero, forcing locks that dominate the cost once Talapas exposes dozens of hardware threads. CSR eliminates that shared-state pressure by letting a thread own a contiguous row block, turning the kernel into a streaming dot-product that scales with thread count until memory bandwidth caps progression. The remaining fixed costs (loading the matrix, converting formats) stayed within 5\% across runs and therefore did not influence the comparative plots. Future CPU optimizations should therefore prioritize CSR usage or redesign the COO path with privatized buffers plus a reduction stage to sidestep locks.
+
+\section{Conclusions}
+On the cant benchmark, CSR is the only viable path to parallel speedup: it slashes runtime from $1.59$ s (serial) to $0.067$ s (28 threads) while COO never beats its $1.50$ s serial version. The experiment reinforces that sparse kernels must minimize synchronization and exploit structured memory access to benefit from Talapas' cores. The averaged CSV/plot workflow from Homework~01/02 again proved helpful---reusing those helpers made it straightforward to digest the 140 timing logs into the figures below.
+
+\begin{figure*}[ht]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      title={COO SpMV Runtime vs. Threads},
+      xlabel={num\_threads},
+      ylabel={time (seconds)},
+      grid=both,
+      legend pos=outer north east,
+      width=0.9\linewidth, height=0.5\linewidth,
+      /pgf/number format/1000 sep={}
+    ]
+      \addplot+[mark=*, thick] table[
+        col sep=comma,
+        x=num_threads, y=coo_spmv_time
+      ] {output/spmv_avg.csv};
+      \addlegendentry{Parallel COO}
+
+      \addplot+[mark=square*, thick] table[
+        col sep=comma,
+        x=num_threads, y=coo_spmv_serial_time
+      ] {output/spmv_avg.csv};
+      \addlegendentry{Serial COO}
+    \end{axis}
+  \end{tikzpicture}
+  \caption{Averaged COO kernel runtime on the cant matrix (five Talapas runs per thread count).}
+  \label{fig:coo_runtime}
+\end{figure*}
+
+\begin{figure*}[ht]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      title={CSR SpMV Runtime vs. Threads},
+      xlabel={num\_threads},
+      ylabel={time (seconds)},
+      grid=both,
+      legend pos=outer north east,
+      width=0.9\linewidth, height=0.5\linewidth,
+      /pgf/number format/1000 sep={}
+    ]
+      \addplot+[mark=*, thick] table[
+        col sep=comma,
+        x=num_threads, y=csr_spmv_time
+      ] {output/spmv_avg.csv};
+      \addlegendentry{Parallel CSR}
+
+      \addplot+[mark=square*, thick] table[
+        col sep=comma,
+        x=num_threads, y=csr_spmv_serial_time
+      ] {output/spmv_avg.csv};
+      \addlegendentry{Serial CSR}
+    \end{axis}
+  \end{tikzpicture}
+  \caption{CSR kernel runtime plummets as threads increase because each thread owns unique row ranges.}
+  \label{fig:csr_runtime}
+\end{figure*}
+
+\begin{table*}[ht]
+  \centering
+  \caption{Selected averaged timings (seconds) on cant. Speedup is w.r.t. the serial variant in the same format.}
+  \label{tab:summary}
+  \begin{tabular}{rrrrrr}
+    \toprule
+    Threads & Parallel COO & Serial COO & Parallel CSR & Serial CSR & CSR Speedup \\
+    \midrule
+     1 & 3.057 & 1.496 & 1.586 & 1.586 & 1.00 \\
+     2 & 3.063 & 1.505 & 0.809 & 1.593 & 1.97 \\
+     4 & 3.064 & 1.500 & 0.405 & 1.594 & 3.93 \\
+     8 & 3.049 & 1.500 & 0.209 & 1.589 & 7.60 \\
+    14 & 3.061 & 1.497 & 0.119 & 1.587 & 13.35 \\
+    28 & 3.051 & 1.497 & 0.068 & 1.588 & 23.53 \\
+    \bottomrule
+  \end{tabular}
+\end{table*}
+
+\end{document}

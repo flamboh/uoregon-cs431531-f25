@@ -622,17 +622,18 @@ void convert_csr_to_ell(unsigned int *csr_row_ptr, unsigned int *csr_col_ind,
         int row_nnz = row_end - row_begin;
         for (int j = 0; j < max_nnz_in_row; j++)
         {
+            unsigned int dst = j * m + i;
             if (j < row_nnz)
             {
-                (*ell_col_ind)[i * max_nnz_in_row + j] =
+                (*ell_col_ind)[dst] =
                     csr_col_ind[row_begin + j];
-                (*ell_vals)[i * max_nnz_in_row + j] =
+                (*ell_vals)[dst] =
                     csr_vals[row_begin + j];
             }
             else
             {
-                (*ell_col_ind)[i * max_nnz_in_row + j] = 0;
-                (*ell_vals)[i * max_nnz_in_row + j] = 0.0;
+                (*ell_col_ind)[dst] = 0;
+                (*ell_vals)[dst] = 0.0;
             }
         }
     }

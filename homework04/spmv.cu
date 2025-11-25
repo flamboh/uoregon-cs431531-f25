@@ -12,26 +12,21 @@ __global__
 void spmv_kernel_ell(unsigned int *col_ind, T *vals, int m, int n,
                                 int nnz, double *x, double *b)
 {
-    unsigned int row = blockIdx.x;
+    unsigned int row = threadIdx.x + blockDim.x * blockIdx.x;
     if (row >= m)
         return;
 
     double sum = 0.0;
-    unsigned int row_offset = row * n;
-    for (int j = 0; j < n; j++)
+    for (int i = row; i < n*m; i+=m)
     {
-        double val = vals[row_offset + j];
-        if (val != 0.0)
-        {
-            sum += val * x[col_ind[row_offset + j]];
-        }
+        sum += vals[i] * x[col_ind[i]];
     }
 
     b[row] = sum;
 }
 
 
-void spmv_gpu_ell(unsigned int* col_ind, double* vals, int m, int n, int nnz, 
+void spmv_gpu_ell(unsigned int* col_ind, double* vals, int m, int n, int nnz,
                   double* x, double* b)
 {
     // timers
@@ -42,8 +37,8 @@ void spmv_gpu_ell(unsigned int* col_ind, double* vals, int m, int n, int nnz,
     float elapsedTime;
 
     // GPU execution parameters
-    unsigned int blocks = m; 
-    unsigned int threads = 64; 
+    unsigned int blocks = m;
+    unsigned int threads = 64;
     unsigned int shared = threads * sizeof(double);
 
 
@@ -53,7 +48,7 @@ void spmv_gpu_ell(unsigned int* col_ind, double* vals, int m, int n, int nnz,
     checkCudaErrors(cudaEventRecord(start, 0));
     for(unsigned int i = 0; i < MAX_ITER; i++) {
         cudaDeviceSynchronize();
-        spmv_kernel_ell<double><<<dimGrid, dimBlock, shared>>>(col_ind, vals, 
+        spmv_kernel_ell<double><<<dimGrid, dimBlock, shared>>>(col_ind, vals,
                                                                m, n, nnz, x, b);
     }
     checkCudaErrors(cudaEventRecord(stop, 0));
@@ -77,8 +72,8 @@ void allocate_ell_gpu(unsigned int* col_ind, double* vals, int m, int ell_width,
     cudaMalloc((void**)dev_b, m * sizeof(double));
 }
 
-void allocate_csr_gpu(unsigned int* row_ptr, unsigned int* col_ind, 
-                      double* vals, int m, int n, int nnz, double* x, 
+void allocate_csr_gpu(unsigned int* row_ptr, unsigned int* col_ind,
+                      double* vals, int m, int n, int nnz, double* x,
                       unsigned int** dev_row_ptr, unsigned int** dev_col_ind,
                       double** dev_vals, double** dev_x, double** dev_b)
 {
@@ -103,7 +98,7 @@ void get_result_gpu(double* dev_b, double* b, int m)
 
 
     checkCudaErrors(cudaEventRecord(start, 0));
-    checkCudaErrors(cudaMemcpy(b, dev_b, sizeof(double) * m, 
+    checkCudaErrors(cudaMemcpy(b, dev_b, sizeof(double) * m,
                                cudaMemcpyDeviceToHost));
     checkCudaErrors(cudaEventRecord(stop, 0));
     checkCudaErrors(cudaEventSynchronize(stop));
@@ -156,7 +151,7 @@ __global__
 void spmv_kernel(unsigned int *row_ptr, unsigned int *col_ind,
                             T *vals, int m, int n, int nnz, double *x,
                             double *b)
-{   
+{
     unsigned int tid = threadIdx.x;
     unsigned int row = blockIdx.x;
 
@@ -175,12 +170,12 @@ void spmv_kernel(unsigned int *row_ptr, unsigned int *col_ind,
     __syncthreads();
 
     for (unsigned int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-        if (tid < offset) 
+        if (tid < offset)
             sdata[tid] += sdata[tid + offset];
         __syncthreads();
     }
 
-    if (tid == 0) 
+    if (tid == 0)
         b[row] = sdata[0];
 }
 
@@ -198,8 +193,8 @@ void spmv_gpu(unsigned int* row_ptr, unsigned int* col_ind, double* vals,
     // GPU execution parameters
     // 1 thread block per row
     // 64 threads working on the non-zeros on the same row
-    unsigned int blocks = m; 
-    unsigned int threads = 64; 
+    unsigned int blocks = m;
+    unsigned int threads = 64;
     unsigned int shared = threads * sizeof(double);
 
     dim3 dimGrid(blocks, 1, 1);
@@ -208,8 +203,8 @@ void spmv_gpu(unsigned int* row_ptr, unsigned int* col_ind, double* vals,
     checkCudaErrors(cudaEventRecord(start, 0));
     for(unsigned int i = 0; i < MAX_ITER; i++) {
         cudaDeviceSynchronize();
-        spmv_kernel<double><<<dimGrid, dimBlock, shared>>>(row_ptr, col_ind, 
-                                                           vals, m, n, nnz, 
+        spmv_kernel<double><<<dimGrid, dimBlock, shared>>>(row_ptr, col_ind,
+                                                           vals, m, n, nnz,
                                                            x, b);
     }
     checkCudaErrors(cudaEventRecord(stop, 0));
