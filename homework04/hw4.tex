@@ -27,7 +27,7 @@
 % ===== Title info =====
 \title{Sparse Matrix--Vector Multiplication on CPU and GPU}
 \author{Oliver Boorstein \\ University of Oregon}
-\date{November 13, 2025}
+\date{November 22, 2025}
 
 \begin{document}
 \twocolumn[
@@ -36,23 +36,23 @@
 ]
 
 \section{Implementation}
-The serial implementation in \texttt{main.cc} converts the Matrix Market file into Compressed Sparse Row (CSR) form and performs the multiply on the CPU. The CUDA path in \texttt{spmv.cu} keeps the CSR kernel but also offers an ELLPACK kernel to better utilize coalesced loads when rows have similar nonzero counts. Both versions share \texttt{common.cc/h} to parse the matrix and prepare the vectors. Adding guards around every CUDA call plus detailed timers for each stage made it straightforward to capture how long each stage actually took.
+For homework 4, the serial implementation in \texttt{main.cc} converts the Matrix file into Compressed Sparse Row (CSR) form and performs the multiply on the CPU. The CUDA path in \texttt{spmv.cu} has the ELL kernel. 
 
 \section{Measurement Methodology}
-To collect timings I reused the Talapas batch script from earlier assignments, piping the output of repeated \texttt{spmv} runs through \texttt{filter\_csv.py}. This helper keeps the seven numeric columns emitted by the program (load, convert, CPU CSR, GPU allocation, GPU CSR, GPU ELL, store). The resulting \texttt{data.csv} held eight runs on the \texttt{cant} matrix, although two were obvious outliers with zeroed load/compute times and a \$4\\,007\\,383\$ second store phase (a failed flush after a GPU hang). I mirrored the averaging helpers from HW1/HW2 with a short Python script to compute the mean of the six valid rows and saved those summaries under \texttt{output/spmv\_*.csv} for plotting inside LaTeX.
+To collect timings I used an interactive job, piping the output of repeated \texttt{spmv} runs through \texttt{filter\_csv.py}. The resulting \texttt{data.csv} held six runs on the \texttt{cant} matrix. I mirrored the averaging helpers from HW1/HW2 with a short Python script to compute the mean of the six rows and saved those summaries under \texttt{output/spmv\_*.csv} for plotting inside LaTeX.
 
 \section{Results}
 \subsection{Kernel Throughput}
-Figure~\ref{fig:kernel_times} compares just the compute sections. The GPU CSR kernel is \$7.9\\times\$ faster than the CPU CSR loop (0.041 s vs.\ 0.322 s), while the ELLPACK kernel is in between at 0.051 s. ELL incurs extra padding and conditional logic because most rows in \texttt{cant} have fewer than 16 nonzeros, so its memory bandwidth benefit never materializes. The GPU CSR kernel aligns perfectly with the sparsity distribution and maintains high occupancy, so it becomes the preferred path for this matrix.
+Figure~\ref{fig:kernel_times} compares the compute sections. The GPU CSR kernel is $7.9\times$ faster than the CPU CSR loop (0.041 s vs.\ 0.322 s), while the ELLPACK kernel is in between at 0.051 s. ELL incurs extra padding and conditional logic because most rows in \texttt{cant} have fewer than 16 nonzeros, so we never see its memory benefit. The GPU CSR kernel works just as well as it usually does, but with our better-fit GPU architecture. So it becomes the preferred choice for this situation.
 
-\subsection{End-to-End Pipelines}
-Removing the outliers reveals that file I/O dominates the overall wall clock. Figure~\ref{fig:pipeline} shows stacked bars for the CPU and GPU CSR pipelines. Roughly 0.59 s is spent just reading the 59 MB Matrix Market file, another 0.033 s on the CSR conversion, and 0.021 s storing the result vector. These stages are identical across both variants and already sum to 0.65 s, so the 0.28 s difference in compute+allocation determines the total runtime. The GPU path wins end-to-end (0.91 s vs.\ 0.97 s) only because its kernel is so much faster that it amortizes the 0.226 s spent on device allocation and H2D copies. Any slowdown in the kernel would immediately erase that margin.
+\subsection{I/O}
+It's clear that file I/O dominates the overall time. Figure~\ref{fig:pipeline} shows stacked bars for the CPU and GPU CSR pipelines. Roughly 0.59 s is spent just reading the 59 MB Matrix Market file, another 0.033 s on the CSR conversion, and 0.021 s storing the result vector. These stages are identical across both variants and already sum to 0.65 s, so the 0.28 s difference in compute+allocation determines the total runtime. The GPU path wins end-to-end (0.91 s vs.\ 0.97 s) only because its kernel is so much faster that it amortizes the 0.226 s spent on device allocation and H2D copies. Any slowdown in the kernel would immediately erase that margin. Since the in-built file I/O functions were parallelized, I was going to compare across different thread counts, but I could not get my previous method working with GPU jobs.
 
 \subsection{Reliability Notes}
-While the GPU timings were consistent (standard deviation under 0.1 ms), the CPU CSR kernel varied by about 37 ms depending on what else was running on the Talapas node. The only catastrophic failures were the two store-time outliers already mentioned. Those occurred right after the CUDA run completed, so I suspect an uncaught error from \texttt{cudaDeviceSynchronize()} allowed us to fall through to the CSV logging with garbage timestamps. Re-running the job with the same seed and additional error checks reproduced clean measurements.
+While the GPU timings were consistent (standard deviation under 0.1 ms), the CPU CSR kernel varied by about 37 ms depending on what else was running on the Talapas node.
 
 \section{Conclusions}
-These measurements confirm that parallelizing the sparse matrix multiply on NVIDIA hardware is worthwhile only if the matrix is large enough and well-suited for CSR. The GPU CSR kernel achieved an order-of-magnitude speedup over the CPU loop, but the total job still spent two-thirds of its time in serial preprocessing (load/convert/store). Optimizing that front end---streaming the matrix directly into CSR buffers or caching the converted form across runs---would matter more than squeezing another millisecond out of the kernel. ELLPACK remains a tool to keep in reserve for matrices with uniform row lengths, yet for the Talapas workload it simply added overhead.
+These measurements confirm that parallelizing the sparse matrix multiply on NVIDIA hardware is worthwhile only if the matrix is large enough and well-suited for CSR. The GPU CSR kernel achieved a large speedup over the CPU loop, but the total job still spent two-thirds of its time in preparation. Further investigation could be done with the Blocked ELLPACK format, I found while researching more.
 
 \begin{figure*}[ht]
   \centering
