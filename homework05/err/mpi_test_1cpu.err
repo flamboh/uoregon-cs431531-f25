@@ -1,0 +1,108 @@
+==> Error: `spack unload` requires Spack's shell support.
+  
+  To set up shell support, run the command below for your shell.
+  
+  For bash/zsh/sh:
+    . /gpfs/packages/spack/spack-rhel8/share/spack/setup-env.sh
+  
+  For csh/tcsh:
+    source /gpfs/packages/spack/spack-rhel8/share/spack/setup-env.csh
+  
+  For fish:
+    source /gpfs/packages/spack/spack-rhel8/share/spack/setup-env.fish
+  
+  For Windows batch:
+    source /gpfs/packages/spack/spack-rhel8/share/spack/spack_cmd.bat
+  
+  Or, if you do not want to use shell support, run one of these instead:
+  
+      eval `spack unload --sh  ` /i3vva2q  # bash/zsh/sh
+      eval `spack unload --csh ` /i3vva2q  # csh/tcsh
+      eval `spack unload --fish` /i3vva2q  # fish
+      eval `spack unload --bat ` /i3vva2q  # batch
+  
+  If you have already set up Spack's shell support but still receive
+  this message, please make sure to call Spack via the `spack` command
+  without any path components (such as `bin/spack`).
+  
+==> Error: `spack unload` requires Spack's shell support.
+  
+  To set up shell support, run the command below for your shell.
+  
+  For bash/zsh/sh:
+    . /gpfs/packages/spack/spack-rhel8/share/spack/setup-env.sh
+  
+  For csh/tcsh:
+    source /gpfs/packages/spack/spack-rhel8/share/spack/setup-env.csh
+  
+  For fish:
+    source /gpfs/packages/spack/spack-rhel8/share/spack/setup-env.fish
+  
+  For Windows batch:
+    source /gpfs/packages/spack/spack-rhel8/share/spack/spack_cmd.bat
+  
+  Or, if you do not want to use shell support, run one of these instead:
+  
+      eval `spack unload --sh  ` /i3vva2q  # bash/zsh/sh
+      eval `spack unload --csh ` /i3vva2q  # csh/tcsh
+      eval `spack unload --fish` /i3vva2q  # fish
+      eval `spack unload --bat ` /i3vva2q  # batch
+  
+  If you have already set up Spack's shell support but still receive
+  this message, please make sure to call Spack via the `spack` command
+  without any path components (such as `bin/spack`).
+  
+==> Error: `spack unload` requires Spack's shell support.
+  
+  To set up shell support, run the command below for your shell.
+  
+  For bash/zsh/sh:
+    . /gpfs/packages/spack/spack-rhel8/share/spack/setup-env.sh
+  
+  For csh/tcsh:
+    source /gpfs/packages/spack/spack-rhel8/share/spack/setup-env.csh
+  
+  For fish:
+    source /gpfs/packages/spack/spack-rhel8/share/spack/setup-env.fish
+  
+  For Windows batch:
+    source /gpfs/packages/spack/spack-rhel8/share/spack/spack_cmd.bat
+  
+  Or, if you do not want to use shell support, run one of these instead:
+  
+      eval `spack unload --sh  ` /i3vva2q  # bash/zsh/sh
+      eval `spack unload --csh ` /i3vva2q  # csh/tcsh
+      eval `spack unload --fish` /i3vva2q  # fish
+      eval `spack unload --bat ` /i3vva2q  # batch
+  
+  If you have already set up Spack's shell support but still receive
+  this message, please make sure to call Spack via the `spack` command
+  without any path components (such as `bin/spack`).
+  
+==> Error: `spack unload` requires Spack's shell support.
+  
+  To set up shell support, run the command below for your shell.
+  
+  For bash/zsh/sh:
+    . /gpfs/packages/spack/spack-rhel8/share/spack/setup-env.sh
+  
+  For csh/tcsh:
+    source /gpfs/packages/spack/spack-rhel8/share/spack/setup-env.csh
+  
+  For fish:
+    source /gpfs/packages/spack/spack-rhel8/share/spack/setup-env.fish
+  
+  For Windows batch:
+    source /gpfs/packages/spack/spack-rhel8/share/spack/spack_cmd.bat
+  
+  Or, if you do not want to use shell support, run one of these instead:
+  
+      eval `spack unload --sh  ` /i3vva2q  # bash/zsh/sh
+      eval `spack unload --csh ` /i3vva2q  # csh/tcsh
+      eval `spack unload --fish` /i3vva2q  # fish
+      eval `spack unload --bat ` /i3vva2q  # batch
+  
+  If you have already set up Spack's shell support but still receive
+  this message, please make sure to call Spack via the `spack` command
+  without any path components (such as `bin/spack`).
+  

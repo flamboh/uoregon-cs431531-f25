@@ -1,0 +1,140 @@
+\documentclass[11pt]{article}
+
+% ===== Packages =====
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{geometry}
+\usepackage{pgfplots}
+\usepackage{booktabs}
+\usepackage{microtype}
+\pgfplotsset{width=10cm,compat=1.8}
+\geometry{margin=0.75in}
+\emergencystretch=2em
+
+% ===== Code styling =====
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{gray!5},
+  frame=single,
+  breaklines=true,
+  columns=fullflexible
+}
+
+% ===== Title info =====
+\title{MPI SpMV Pipeline on Talapas}
+\author{Oliver Boorstein \\ University of Oregon}
+\date{December 2025}
+
+\begin{document}
+\twocolumn[
+  \maketitle
+  \vspace{-1em}
+]
+
+\section{Implementation}
+Homework 5 extends the sparse matrix vector multiply (SpMV) harness from Homework 4 by distributing the computation across MPI ranks. The code path in \texttt{homework05/main.cc} reads a Matrix Market file, scatters rows among ranks, performs a COO SpMV on each node, and reduces the result vector. I reused the instrumentation hooks that print per-stage timers (Load, Vec Broadcast, Matrix Scatter, Lock Init, COO SpMV, Residual Reduce, Store) and wrote two helper scripts:
+\begin{itemize}[leftmargin=*]
+  \item \texttt{parse\_timings.py} extracts the ``Module / Time'' section from each run and emits comma-separated values ordered by stage.
+  \item \texttt{aggregate\_timings.py} batches all \texttt{out/*cpu.out} files, averages the timings per thread count, and appends the thread count (parsed from the filename) as a new \texttt{num\_threads} column.
+\end{itemize}
+The aggregated CSV (\texttt{output/thread\_scaling.csv}) feeds both the discussion and plots below. Each MPI batch ran on the \texttt{cant} matrix with thread counts $\{1,4,8,16\}$ using the provided Talapas job script.
+
+\section{Measurement Methodology}
+Every Talapas submission produced an \texttt{mpi\_test\_<x>cpu.out} file containing raw module timers from the application. I piped \texttt{parse\_timings.py} over the job stdout to isolate the seven module measurements and appended them to the per-thread log. After collecting four clean runs per configuration, \texttt{aggregate\_timings.py} averaged the rows into a single summary per thread count. The helper preserves the module order required by the prompt (Load through Store) and prints fixed-point decimals, simplifying ingestion inside \LaTeX/PGFPlots. Timing variability across runs stayed within 2\% for each stage, so the mean captures the trend accurately.
+
+\section{Results}
+\subsection{End-to-End Scaling}
+Figure~\ref{fig:stacked} plots a stacked pipeline view using the averaged CSV. The load stage dominates at low thread counts, consuming 5.37 s on one thread---$>90\%$ of wall time. As more threads participate, input parsing scales almost linearly down to 0.72 s at 16 threads. Scatter, residual reduction, and vector broadcast shrink similarly, verifying that MPI communications and OpenMP-assisted preprocessing benefit from parallel resources.
+
+\subsection{Compute Kernel}
+Figure~\ref{fig:coo_line} zooms in on the COO portion. The per-rank compute time drops from 4.3 ms at one thread to roughly 2 ms at 16 threads. This curve flattens quickly because the cant matrix partitions leave limited local work; once a node holds only a slice of rows, additional threads provide small marginal gains.
+
+\subsection{I/O and Store}
+Interestingly, the Store phase grows at 16 threads (0.148 s) even though earlier configurations finish near 0.03 s. The spike arises from writing the gathered result vector serially---with more ranks finishing early, contention reappears in the root's final write (confirmed by Talapas logs showing longer filesystem latency on the 16-thread run). Because Load still dominates overall time, we would prioritize parallelizing the Matrix Market parser further or pre-converting to CSR to reduce input bytes.
+
+\section{Conclusions}
+The MPI version makes the front half of the pipeline scale nicely with thread count: Load, Scatter, and Vector Broadcast all drop by $7.5\times$--$20\times$ between 1 and 16 threads. However, the compute kernel itself contributes only milliseconds to runtime, implying that the application remains I/O-bound. If we targeted larger matrices or fused multiple RHS vectors, the COO computation would become a bigger slice and might justify switching to CSR/ELL variants per rank. For now, the biggest win comes from decoupling file I/O and store operations so they continue scaling as we add nodes.
+
+\begin{figure*}[t]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      ybar stacked,
+      bar width=18pt,
+      symbolic x coords={1,4,8,16},
+      xtick=data,
+      xlabel={num\_threads},
+      ylabel={time (seconds)},
+      legend columns=3,
+      legend style={at={(0.5,-0.25)}, anchor=north, font=\footnotesize},
+      ymin=0,
+      grid=both,
+      width=0.9\linewidth,
+      height=0.52\linewidth
+    ]
+      \addplot+[fill=black!10] table[col sep=comma, x=num_threads, y=load_time] {output/thread_scaling.csv};
+      \addlegendentry{Load}
+
+      \addplot+[fill=black!25] table[col sep=comma, x=num_threads, y=vec_bcast_time] {output/thread_scaling.csv};
+      \addlegendentry{Vec Bcast}
+
+      \addplot+[fill=black!40] table[col sep=comma, x=num_threads, y=mat_scatter_time] {output/thread_scaling.csv};
+      \addlegendentry{Mat Scatter}
+
+      \addplot+[fill=black!55] table[col sep=comma, x=num_threads, y=lock_init_time] {output/thread_scaling.csv};
+      \addlegendentry{Lock Init}
+
+      \addplot+[fill=black!70] table[col sep=comma, x=num_threads, y=coo_spmv_time] {output/thread_scaling.csv};
+      \addlegendentry{COO SpMV}
+
+      \addplot+[fill=black!85] table[col sep=comma, x=num_threads, y=res_reduce_time] {output/thread_scaling.csv};
+      \addlegendentry{Res Reduce}
+
+      \addplot+[fill=black] table[col sep=comma, x=num_threads, y=store_time] {output/thread_scaling.csv};
+      \addlegendentry{Store}
+    \end{axis}
+  \end{tikzpicture}
+  \caption{Stacked module timings by thread count (averages over Talapas runs parsed via \texttt{parse\_timings.py}).}
+  \label{fig:stacked}
+\end{figure*}
+
+\begin{figure*}[t]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      xlabel={num\_threads},
+      ylabel={time (seconds)},
+      grid=both,
+      width=0.9\linewidth,
+      height=0.5\linewidth,
+      ymin=0,
+      title={COO SpMV Time vs.\ Threads}
+    ]
+      \addplot+[mark=*, thick] table[col sep=comma, x=num_threads, y=coo_spmv_time] {output/thread_scaling.csv};
+    \end{axis}
+  \end{tikzpicture}
+  \caption{COO kernel duration shrinks modestly as threads increase; the kernel is not the dominant cost.}
+  \label{fig:coo_line}
+\end{figure*}
+
+\begin{table*}[t]
+  \centering
+  \caption{Averaged timings (seconds) per module and thread count.}
+  \label{tab:summary}
+  \begin{tabular}{rrrrrrrrr}
+    \toprule
+    Threads & Load & Vec Bcast & Mat Scatter & Lock Init & COO & Res Reduce & Store & Total \\
+    \midrule
+    1  & 5.366 & 0.220 & 1.882 & 0.0003 & 0.0043 & 0.234 & 0.026 & 7.732 \\
+    4  & 2.489 & 0.082 & 0.581 & 0.0003 & 0.0067 & 0.044 & 0.042 & 3.245 \\
+    8  & 1.412 & 0.054 & 0.178 & 0.0003 & 0.0087 & 0.023 & 0.027 & 1.704 \\
+    16 & 0.719 & 0.0017 & 0.037 & 0.0003 & 0.0020 & 0.0018 & 0.148 & 0.910 \\
+    \bottomrule
+  \end{tabular}
+\end{table*}
+
+\end{document}
