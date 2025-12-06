@@ -36,7 +36,7 @@
 ]
 
 \section{Implementation}
-Homework 5 extends the sparse matrix vector multiply (SpMV) harness from Homework 4 by distributing the computation across MPI ranks. The code path in \texttt{homework05/main.cc} reads a Matrix Market file, scatters rows among ranks, performs a COO SpMV on each node, and reduces the result vector. I reused the instrumentation hooks that print per-stage timers (Load, Vec Broadcast, Matrix Scatter, Lock Init, COO SpMV, Residual Reduce, Store) and wrote two helper scripts:
+A simple MPI interface made this work for distributing the computation across MPI ranks. I also wrote two helper scripts:
 \begin{itemize}[leftmargin=*]
   \item \texttt{parse\_timings.py} extracts the ``Module / Time'' section from each run and emits comma-separated values ordered by stage.
   \item \texttt{aggregate\_timings.py} batches all \texttt{out/*cpu.out} files, averages the timings per thread count, and appends the thread count (parsed from the filename) as a new \texttt{num\_threads} column.
@@ -44,7 +44,7 @@ Homework 5 extends the sparse matrix vector multiply (SpMV) harness from Homewor
 The aggregated CSV (\texttt{output/thread\_scaling.csv}) feeds both the discussion and plots below. Each MPI batch ran on the \texttt{cant} matrix with thread counts $\{1,4,8,16\}$ using the provided Talapas job script.
 
 \section{Measurement Methodology}
-Every Talapas submission produced an \texttt{mpi\_test\_<x>cpu.out} file containing raw module timers from the application. I piped \texttt{parse\_timings.py} over the job stdout to isolate the seven module measurements and appended them to the per-thread log. After collecting four clean runs per configuration, \texttt{aggregate\_timings.py} averaged the rows into a single summary per thread count. The helper preserves the module order required by the prompt (Load through Store) and prints fixed-point decimals, simplifying ingestion inside \LaTeX/PGFPlots. Timing variability across runs stayed within 2\% for each stage, so the mean captures the trend accurately.
+After collecting five clean runs per configuration, $aggregate\_timings.py$ averaged the rows into a single summary per thread count. Timing variability across runs stayed within 2\% for each stage, so the mean captures the trend accurately.
 
 \section{Results}
 \subsection{COO Kernel Scaling}
@@ -54,7 +54,7 @@ Figure~\ref{fig:coo_line} shows the averaged COO timing reported by the MPI harn
 Even though the COO stage is short, its reduction still matters when sweeping thread counts. Comparing the totals derived from \texttt{aggregate\_timings.py} shows a $3.8\times$ drop in overall runtime (7.73 s $\rightarrow$ 0.91 s) between one and sixteen threads. Only about 6--8 ms of that savings comes from the COO kernel itself, so the primary benefit of optimizing COO is preventing it from becoming a bottleneck as the rest of the pipeline accelerates. The helper scripts make it easy to keep watching the COO contribution in future experiments with different matrices or hybrid formats.
 
 \section{Conclusions}
-The measurements highlight that the MPI pipeline already spends the vast majority of its time before and after the COO kernel. Nevertheless, the kernel scales from $4.3$ ms down to $2.0$ ms as we increase threads, ensuring that it stays hidden behind I/O and communication costs. Future work should therefore focus on either adopting CSR within each rank or batching several right-hand sides so that the compute portion becomes significant enough to justify further optimization.
+The measurements highlight that the MPI pipeline already spends the vast majority of its time before and after the COO kernel. Either way, the kernel scales from $4.3$ ms down to $2.0$ ms as we increase threads, ensuring that it stays hidden behind I/O and communication costs. It would have been good to include additional tests on more nodes. However there were none available. Overall, these results make reasonable sense, particularly for a matrix this size. The scale is not large enough to amortize much of the costs of MPI. Though resulst for multithreading here were far more consistent with expecations than that of many of my previous assignments. Hard to tell if this is a change with Talapas or a fix in my own understanding, but nonetheless good to see.
 
 \begin{figure*}[t]
   \centering
@@ -74,5 +74,21 @@ The measurements highlight that the MPI pipeline already spends the vast majorit
   \caption{COO kernel duration shrinks modestly as threads increase; the kernel is not the dominant cost.}
   \label{fig:coo_line}
 \end{figure*}
+
+\begin{table*}[t]
+  \centering
+  \caption{Averaged timings (seconds) per module and thread count.}
+  \label{tab:summary}
+  \begin{tabular}{rrrrrrrrr}
+    \toprule
+    Threads & Load & Vec Bcast & Mat Scatter & Lock Init & COO & Res Reduce & Store & Total \\
+    \midrule
+    1  & 5.366 & 0.220 & 1.882 & 0.0003 & 0.0043 & 0.234 & 0.026 & 7.732 \\
+    4  & 2.489 & 0.082 & 0.581 & 0.0003 & 0.0067 & 0.044 & 0.042 & 3.245 \\
+    8  & 1.412 & 0.054 & 0.178 & 0.0003 & 0.0087 & 0.023 & 0.027 & 1.704 \\
+    16 & 0.719 & 0.0017 & 0.037 & 0.0003 & 0.0020 & 0.0018 & 0.148 & 0.910 \\
+    \bottomrule
+  \end{tabular}
+\end{table*}
 
 \end{document}
