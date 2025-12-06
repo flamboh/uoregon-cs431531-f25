@@ -67,7 +67,7 @@ int main(int argc, char** argv)
     // load and expand sparse matrix from file (if symmetric)
     fprintf(stdout, "Matrix file name: %s ... ", matrixName);
     t0 = ReadTSC();
-    ret = mm_read_mtx_crd(matrixName, &m, &n, &nnz, &row_ind, &col_ind, &val, 
+    ret = mm_read_mtx_crd(matrixName, &m, &n, &nnz, &row_ind, &col_ind, &val,
                           &matcode);
     check_mm_ret(ret);
     if(is_symmetric) {
@@ -75,12 +75,12 @@ int main(int argc, char** argv)
     }
     timer[LOAD_TIME] += ElapsedTime(ReadTSC() - t0);
 
-    
+
     // Convert co-ordinate format to CSR format
     fprintf(stdout, "Converting COO to CSR...");
-    unsigned int* csr_row_ptr = NULL; 
-    unsigned int* csr_col_ind = NULL;  
-    double* csr_vals = NULL; 
+    unsigned int* csr_row_ptr = NULL;
+    unsigned int* csr_col_ind = NULL;
+    double* csr_vals = NULL;
     t0 = ReadTSC();
     // IMPLEMENT THIS FUNCTION - MAKE SURE IT'S PARALLELIZED
     convert_coo_to_csr(row_ind, col_ind, val, m, n, nnz,
@@ -106,7 +106,7 @@ int main(int argc, char** argv)
     // Calculate COO SpMV
     // first set up some locks
     t0 = ReadTSC();
-    omp_lock_t* writelock; 
+    omp_lock_t* writelock;
     init_locks(&writelock, m);
     timer[LOCK_INIT_TIME] += ElapsedTime(ReadTSC() - t0);
 
@@ -115,8 +115,8 @@ int main(int argc, char** argv)
     fprintf(stdout, "Calculating COO SpMV ... ");
     t0 = ReadTSC();
     for(unsigned int i = 0; i < MAX_ITER; i++) {
-        // IMPLEMENT THIS FUNCTION - MAKE SURE IT'S PARALLELIZED 
-        spmv_coo(row_ind, col_ind, val, m, n, nnz, vector_x, res_coo, 
+        // IMPLEMENT THIS FUNCTION - MAKE SURE IT'S PARALLELIZED
+        spmv_coo(row_ind, col_ind, val, m, n, nnz, vector_x, res_coo,
                  writelock);
     }
     timer[SPMV_COO_TIME] += ElapsedTime(ReadTSC() - t0);
@@ -130,7 +130,7 @@ int main(int argc, char** argv)
     fprintf(stdout, "Calculating CSR SpMV ... ");
     t0 = ReadTSC();
     for(unsigned int i = 0; i < MAX_ITER; i++) {
-        // IMPLEMENT THIS FUNCTION - MAKE SURE IT'S PARALLELIZED 
+        // IMPLEMENT THIS FUNCTION - MAKE SURE IT'S PARALLELIZED
         spmv(csr_row_ptr, csr_col_ind, csr_vals, m, n, nnz, vector_x, res_csr);
     }
     timer[SPMV_CSR_TIME] += ElapsedTime(ReadTSC() - t0);
@@ -144,7 +144,7 @@ int main(int argc, char** argv)
     fprintf(stdout, "Calculating COO SpMV serial ... ");
     t0 = ReadTSC();
     for(unsigned int i = 0; i < MAX_ITER; i++) {
-        // IMPLEMENT THIS FUNCTION 
+        // IMPLEMENT THIS FUNCTION
         spmv_coo_ser(row_ind, col_ind, val, m, n, nnz, vector_x, res_coo_ser);
     }
     timer[SPMV_COO_SER] += ElapsedTime(ReadTSC() - t0);
@@ -158,8 +158,8 @@ int main(int argc, char** argv)
     fprintf(stdout, "Calculating CSR SpMV ... ");
     t0 = ReadTSC();
     for(unsigned int i = 0; i < MAX_ITER; i++) {
-        // IMPLEMENT THIS FUNCTION - MAKE SURE IT'S PARALLELIZED 
-        spmv_ser(csr_row_ptr, csr_col_ind, csr_vals, m, n, nnz, vector_x, 
+        // IMPLEMENT THIS FUNCTION - MAKE SURE IT'S PARALLELIZED
+        spmv_ser(csr_row_ptr, csr_col_ind, csr_vals, m, n, nnz, vector_x,
                  res_csr_ser);
     }
     timer[SPMV_CSR_SER] += ElapsedTime(ReadTSC() - t0);
@@ -169,7 +169,7 @@ int main(int argc, char** argv)
 
     // Store the calculated vector in a file, one element per line.
     char resName[MAX_FILENAME];
-    strcpy(resName, argv[arg_index]); 
+    strcpy(resName, argv[arg_index]);
     fprintf(stdout, "Result file name: %s ... ", resName);
     t0 = ReadTSC();
     store_result(resName, res_csr, m);
@@ -201,12 +201,12 @@ int main(int argc, char** argv)
 }
 
 
-/* This function checks the number of input parameters to the program to make 
-   sure it is correct. If the number of input parameters is incorrect, it 
+/* This function checks the number of input parameters to the program to make
+   sure it is correct. If the number of input parameters is incorrect, it
    prints out a message on how to properly use the program.
    input parameters:
        int    argc
-       char** argv 
+       char** argv
    return parameters:
        none
  */
@@ -225,7 +225,7 @@ void usage(const char* prog_name)
    return paramters:
        none
  */
-void print_matrix_info(char* fileName, MM_typecode matcode, 
+void print_matrix_info(char* fileName, MM_typecode matcode,
                        int m, int n, int nnz)
 {
     fprintf(stdout, "-----------------------------------------------------\n");
@@ -249,7 +249,7 @@ void print_matrix_info(char* fileName, MM_typecode matcode,
 }
 
 
-/* This function checks the return value from the matrix read function, 
+/* This function checks the return value from the matrix read function,
    mm_read_mtx_crd(), and provides descriptive information.
    input parameters:
        int ret    return value from the mm_read_mtx_crd() function
@@ -299,7 +299,7 @@ void check_mm_ret(int ret)
     }
 }
 
-/* This function reads information about a sparse matrix using the 
+/* This function reads information about a sparse matrix using the
    mm_read_banner() function and printsout information using the
    print_matrix_info() function.
    input parameters:
@@ -324,7 +324,7 @@ void read_info(char* fileName, int* is_sym)
     {
         fprintf(stderr, "Error processing Matrix Market banner.\n");
         exit(EXIT_FAILURE);
-    } 
+    }
 
     if(mm_read_mtx_crd_size(fp, &m, &n, &nnz) != 0) {
         fprintf(stderr, "Error reading size.\n");
@@ -338,9 +338,9 @@ void read_info(char* fileName, int* is_sym)
 }
 
 void prefix_sum(int* src, int* prefix, int n)
-{   
+{
     int m = pow(2, (int)ceil(log2((double)n)));
-    
+
     int *temp = (int *)malloc(m * sizeof(int));
 
     for (int i = 0; i < m; ++i) {
@@ -358,17 +358,17 @@ void prefix_sum(int* src, int* prefix, int n)
     }
 
     temp[m - 1] = 0;
-    
+
     for (int offset = m >> 1; offset >= 1; offset >>= 1) {
         int step = offset << 1;
         #pragma omp parallel for schedule(static)
         for (int j = step - 1; j < m; j += step) {
             int t = temp[j - offset];
             temp[j - offset] = temp[j];
-            temp[j] += t; 
+            temp[j] += t;
         }
     }
-    
+
     #pragma omp parallel for schedule(static)
     for (int i = 0; i < n; i++) prefix[i] = temp[i] + src[i];
 }
@@ -389,7 +389,7 @@ void prefix_sum(int* src, int* prefix, int n)
    return paramters:
        none
  */
-void convert_coo_to_csr(int* row_ind, int* col_ind, double* val, 
+void convert_coo_to_csr(int* row_ind, int* col_ind, double* val,
                         int m, int n, int nnz,
                         unsigned int** csr_row_ptr, unsigned int** csr_col_ind,
                         double** csr_vals)
@@ -402,7 +402,7 @@ void convert_coo_to_csr(int* row_ind, int* col_ind, double* val,
 
     for (int i = 0; i < m + 1; i++)
         (*csr_row_ptr)[i] = 0; // initialize to 0
-    
+
     // counting nnz in each row
     int *row_counts = (int *)calloc(m, sizeof(int)); // track amount inserted in each row
     #pragma omp parallel for schedule(static)
@@ -411,10 +411,10 @@ void convert_coo_to_csr(int* row_ind, int* col_ind, double* val,
         #pragma omp atomic
         row_counts[row]++;
     }
-     
+
     int *row_prefix = (int *)malloc(m * sizeof(int));
     prefix_sum(row_counts, row_prefix, m); // convert to
-    
+
     (*csr_row_ptr)[0] = 0;
     for (int i = 0; i < m; i++)
         (*csr_row_ptr)[i + 1] = row_prefix[i];
@@ -425,7 +425,7 @@ void convert_coo_to_csr(int* row_ind, int* col_ind, double* val,
         int cur_row = row_ind[i] - 1; // subtract one because coo is 1 based
         unsigned int offset = row_offsets[cur_row]++;
         int index = (*csr_row_ptr)[cur_row] + offset;
-        
+
 
         (*csr_col_ind)[index] = col_ind[i] - 1;
         (*csr_vals)[index] = val[i];
@@ -449,7 +449,7 @@ void read_vector(char* fileName, double** vector, int* vecSize)
 {
     FILE* fp = fopen(fileName, "r");
     assert(fp);
-    char line[MAX_NUM_LENGTH];    
+    char line[MAX_NUM_LENGTH];
     fgets(line, MAX_NUM_LENGTH, fp);
     fclose(fp);
 
@@ -457,13 +457,13 @@ void read_vector(char* fileName, double** vector, int* vecSize)
     double* vector_ = (double*) malloc(sizeof(double) * vector_size);
 
     fp = fopen(fileName, "r");
-    assert(fp); 
+    assert(fp);
     // first read the first line to get the # elements
     fgets(line, MAX_NUM_LENGTH, fp);
 
     unsigned int index = 0;
     while(fgets(line, MAX_NUM_LENGTH, fp) != NULL) {
-        vector_[index] = atof(line); 
+        vector_[index] = atof(line);
         index++;
     }
 
@@ -476,13 +476,14 @@ void read_vector(char* fileName, double** vector, int* vecSize)
 
 /* SpMV function for COO stored sparse matrix
  */
-void spmv_coo(unsigned int* row_ind, unsigned int* col_ind, double* vals, 
-              int m, int n, int nnz, double* vector_x, double *res, 
+void spmv_coo(unsigned int* row_ind, unsigned int* col_ind, double* vals,
+              int m, int n, int nnz, double* vector_x, double *res,
               omp_lock_t* writelock)
 {
     for (int i = 0; i < m; i++)
         res[i] = 0.0;
 
+    #pragma omp parallel for
     for (int i = 0; i < nnz; i++) {
         int row = row_ind[i] - 1;
         int col = col_ind[i] - 1;
@@ -498,8 +499,8 @@ void spmv_coo(unsigned int* row_ind, unsigned int* col_ind, double* vals,
 
 /* SpMV function for CSR stored sparse matrix
  */
-void spmv(unsigned int* csr_row_ptr, unsigned int* csr_col_ind, 
-          double* csr_vals, int m, int n, int nnz, 
+void spmv(unsigned int* csr_row_ptr, unsigned int* csr_col_ind,
+          double* csr_vals, int m, int n, int nnz,
           double* vector_x, double *res)
 {
     #pragma omp parallel for
@@ -512,7 +513,7 @@ void spmv(unsigned int* csr_row_ptr, unsigned int* csr_col_ind,
         unsigned int row_begin = csr_row_ptr[i];
         unsigned int row_end = csr_row_ptr[i + 1];
         for(unsigned int j = row_begin; j < row_end; j++) {
-            res[i] += csr_vals[j] * vector_x[csr_col_ind[j]]; 
+            res[i] += csr_vals[j] * vector_x[csr_col_ind[j]];
         }
     }
 }
@@ -520,7 +521,7 @@ void spmv(unsigned int* csr_row_ptr, unsigned int* csr_col_ind,
 
 /* SpMV function for COO stored sparse matrix
  */
-void spmv_coo_ser(unsigned int* row_ind, unsigned int* col_ind, double* vals, 
+void spmv_coo_ser(unsigned int* row_ind, unsigned int* col_ind, double* vals,
                   int m, int n, int nnz, double* vector_x, double *res)
 {
     for (int i = 0; i < m; i++)
@@ -537,8 +538,8 @@ void spmv_coo_ser(unsigned int* row_ind, unsigned int* col_ind, double* vals,
 
 /* SpMV function for CSR stored sparse matrix
  */
-void spmv_ser(unsigned int* csr_row_ptr, unsigned int* csr_col_ind, 
-              double* csr_vals, int m, int n, int nnz, 
+void spmv_ser(unsigned int* csr_row_ptr, unsigned int* csr_col_ind,
+              double* csr_vals, int m, int n, int nnz,
               double* vector_x, double *res)
 {
     for (int i = 0; i < m; i++)
@@ -570,7 +571,7 @@ void store_result(char *fileName, double* res, int m)
     fclose(fp);
 }
 
-/* Print timing information 
+/* Print timing information
  */
 void print_time(double timer[], int num_threads, int csv_output)
 {
@@ -608,7 +609,7 @@ void print_time(double timer[], int num_threads, int csv_output)
     fprintf(stdout, "%f\n", timer[STORE_TIME]);
 }
 
-void expand_symmetry(int m, int n, int* nnz_, int** row_ind, int** col_ind, 
+void expand_symmetry(int m, int n, int* nnz_, int** row_ind, int** col_ind,
                      double** val)
 {
     fprintf(stdout, "Expanding symmetric matrix ... ");
