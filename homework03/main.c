@@ -480,6 +480,7 @@ void spmv_coo(unsigned int* row_ind, unsigned int* col_ind, double* vals,
               int m, int n, int nnz, double* vector_x, double *res,
               omp_lock_t* writelock)
 {
+    #pragma omp parallel for
     for (int i = 0; i < m; i++)
         res[i] = 0.0;
 
